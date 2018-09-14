@@ -119,7 +119,7 @@ int main(int argc, const char **argv) {
   }
 
   if (verbose) std::cerr << "Running " << jobs << " jobs at a time." << std::endl;
-  queue.queue.emplace(root.get(), nullptr, std::unique_ptr<Receiver>(new Output));
+  queue.queue.emplace(root.get(), queue.next(), nullptr, std::unique_ptr<Receiver>(new Output));
   do { queue.run(); } while (jobtable.wait());
 
   //std::cerr << "Computed in " << Action::next_serial << " steps." << std::endl;

@@ -106,8 +106,7 @@ static Expr *parse_def(Lexer &lex, std::string &name);
 static Expr *parse_block(Lexer &lex);
 
 static int relabel_descend(Expr *expr, int index) {
-  if (!(expr->flags & FLAG_TOUCHED)) {
-    expr->flags |= FLAG_TOUCHED;
+  if (!expr->uses.fetch_or(1)) {
     if (expr->type == VarRef::type) {
       VarRef *ref = reinterpret_cast<VarRef*>(expr);
       if (ref->name != "_") return index;

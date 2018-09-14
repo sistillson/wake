@@ -6,7 +6,7 @@
 
 struct Value;
 struct ThunkQueue;
-struct DefBinding;
+struct Expr;
 struct Location;
 
 struct Receiver {
@@ -55,12 +55,12 @@ struct Binding {
   std::shared_ptr<Binding> next;
   std::shared_ptr<Binding> invoker;
   std::unique_ptr<Future[]> future;
-  Location *location;
-  DefBinding *binding;
+  Location *location; // function body
+  Expr *expr; // DefBinding or App
   int nargs;
 
-  Binding(const std::shared_ptr<Binding> &next_, const std::shared_ptr<Binding> &invoker_, Location *location_, DefBinding *binding_, int nargs_)
-    : next(next_), invoker(invoker_), future(new Future[nargs_]), location(location_), binding(binding_), nargs(nargs_) { }
+  Binding(const std::shared_ptr<Binding> &next_, const std::shared_ptr<Binding> &invoker_, Location *location_, Expr *expr_, int nargs_);
+  ~Binding();
 
   static std::unique_ptr<Receiver> make_completer(const std::shared_ptr<Binding> &binding, int arg);
   static std::vector<Location> stack_trace(const std::shared_ptr<Binding> &binding);

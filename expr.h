@@ -7,19 +7,19 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <atomic>
 
 struct Receiver;
 struct Value;
-
-#define FLAG_TOUCHED 1
 
 /* Expression AST */
 struct Expr {
   const char *type;
   Location location;
-  long flags;
+  std::atomic<long> uses;
 
-  Expr(const char *type_, const Location &location_, long flags_ = 0) : type(type_), location(location_), flags(flags_) { }
+  Expr(const char *type_, const Location &location_) : type(type_), location(location_), uses(0) { }
+  Expr(const Expr& e) : type(e.type), location(e.location), uses(0) { }
   virtual ~Expr();
 };
 
