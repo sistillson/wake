@@ -21,7 +21,8 @@ void Completer::receive(ThunkQueue &queue, std::shared_ptr<Value> &&value) {
 
 Binding::Binding(const std::shared_ptr<Binding> &next_, const std::shared_ptr<Binding> &invoker_, Location *location_, Expr *expr_, int nargs_)
  : next(next_), invoker(invoker_), future(new Future[nargs_]), location(location_), expr(expr_), nargs(nargs_) {
-  ++expr->uses;
+  long now = ++expr->uses;
+  if (now > expr->peak) expr->peak = now;
 }
 
 Binding::~Binding() {

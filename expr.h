@@ -17,9 +17,10 @@ struct Expr {
   const char *type;
   Location location;
   std::atomic<long> uses;
+  long peak;
 
-  Expr(const char *type_, const Location &location_) : type(type_), location(location_), uses(0) { }
-  Expr(const Expr& e) : type(e.type), location(e.location), uses(0) { }
+  Expr(const char *type_, const Location &location_) : type(type_), location(location_), uses(0), peak(0) { }
+  Expr(const Expr& e) : type(e.type), location(e.location), uses(0), peak(0) { }
   virtual ~Expr();
 };
 

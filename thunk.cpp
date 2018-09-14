@@ -101,15 +101,20 @@ void Thunk::eval(ThunkQueue &queue)
 void ThunkQueue::run() {
   Thunk run;
   while (!queue.empty()) {
-    run = std::move(queue.front());
+    // extact highest value (except we flipped the sort key -> lowest value)
     std::pop_heap(queue.begin(), queue.end());
+    run = std::move(queue.back());
     queue.pop_back();
-    run.eval(*this);
+    if (run.expr->uses.load() == run.serial) {
+      run.eval(*this);
+    } else {
+      emplace(run.expr, std::move(run.binding), std::move(run.receiver));
+    }
   }
 }
 
 void ThunkQueue::emplace(Expr *expr, std::shared_ptr<Binding> &&binding, std::unique_ptr<Receiver> receiver) {
-  queue.emplace_back(expr, ++serial + expr->uses.load(), std::move(binding), std::move(receiver));
+  queue.emplace_back(expr, expr->uses.load(), std::move(binding), std::move(receiver));
   std::push_heap(queue.begin(), queue.end());
 }
 

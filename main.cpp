@@ -28,19 +28,38 @@ void Output::receive(ThunkQueue &queue, std::shared_ptr<Value> &&value) {
   std::cout << value.get() << std::endl;
 }
 
+static void debug_heap(Expr *expr) {
+  if (expr->peak > 10) std::cout << expr->location << " - " << (expr->peak-1) << " (" << expr->uses << ")" << std::endl;
+  if (expr->type == Lambda::type) {
+    Lambda *lambda = reinterpret_cast<Lambda*>(expr);
+    debug_heap(lambda->body.get());
+  } else if (expr->type == App::type) {
+    App *app = reinterpret_cast<App*>(expr);
+    debug_heap(app->fn .get());
+    debug_heap(app->val.get());
+  } else if (expr->type == DefBinding::type) {
+    DefBinding *def = reinterpret_cast<DefBinding*>(expr);
+    for (auto &i : def->val) debug_heap(i.get());
+    for (auto &i : def->fun) debug_heap(i.get());
+    debug_heap(def->body.get());
+  }
+}
+
 int main(int argc, const char **argv) {
   const char *usage = "Usage: wake [options] [--] EXPRESSION";
   argagg::parser argparser {{
     { "help", {"-h", "--help"},
       "shows this help message", 0},
-    { "jobs", {"-j", "--jobs"},
-      "number of concurrent jobs to run", 1},
-    { "debug", {"-d", "--debug"},
-      "simulate a stack for exceptions", 0},
-    { "verbose", {"-v", "--verbose"},
-      "output progress information", 0},
     { "init", {"--init"},
       "directory to configure as workspace top", 1},
+    { "jobs", {"-j", "--jobs"},
+      "number of concurrent jobs to run", 1},
+    { "verbose", {"-v", "--verbose"},
+      "output progress information", 0},
+    { "debug", {"-d", "--debug"},
+      "simulate a stack for exceptions", 0},
+    { "memory", {"-m", "--memory"},
+      "report peak memory use by line", 0},
   }};
 
   argagg::parser_results args;
@@ -122,6 +141,9 @@ int main(int argc, const char **argv) {
   queue.emplace(root.get(), nullptr, std::unique_ptr<Receiver>(new Output));
   do { queue.run(); } while (jobtable.wait());
 
-  //std::cerr << "Computed in " << Action::next_serial << " steps." << std::endl;
+  std::cerr << "Computed in " << queue.serial.load() << " steps." << std::endl;
+  debug_heap(root.get());
+
   return 0;
 }
+

@@ -71,7 +71,21 @@ global splitBy f l =
       else pair r.first (l.head, r.second)
     finish (splitBy f l.tail)
 
-global filter f l = (splitBy f l).first
+global filter f l = #(splitBy f l).first
+#bad:
+#  if l.empty then nil else
+#    def rest = filter f l.tail
+#    if f l.head then l.head, rest else rest
+#ok:
+  if l.empty then nil
+  else if f l.head then l.head, filter f l.tail else filter f l.tail
+#bad:
+#  if l.empty then nil else
+#    def finish r = if f l.head then l.head, r else r
+#    finish (filter f l.tail)
+#bad:
+#  if l.empty then nil else
+#    (\r (if f l.head then l.head, r else r)) (filter f l.tail)
 
 # Tranposition is only it's own inverse when the lists have non-increasing size
 global transpose l =
@@ -100,10 +114,10 @@ global collate f l r =
       else cmp
 
 # string operations
+def catopen    = prim "catopen" # if inside, breaks eval order!
+def catclose c = prim "catclose"
+def catadd c s = prim "catadd"
 global cat l =
-  def catopen    = prim "catopen"
-  def catclose c = prim "catclose"
-  def catadd c s = prim "catadd"
   catclose (foldl catadd catopen l)
 global catWith s l =
   if l.empty then "" else
