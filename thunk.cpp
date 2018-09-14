@@ -22,7 +22,7 @@ void Application::receive(ThunkQueue &queue, std::shared_ptr<Value> &&value) {
     Closure *clo = reinterpret_cast<Closure*>(value.get());
     args->next = clo->binding;
     args->location = &clo->body->location;
-    queue.queue.emplace(clo->body, queue.next(), std::move(args), std::move(receiver));
+    queue.emplace(clo->body, std::move(args), std::move(receiver));
   }
 }
 
@@ -71,8 +71,8 @@ void Thunk::eval(ThunkQueue &queue)
   } else if (expr->type == App::type) {
     App *app = reinterpret_cast<App*>(expr);
     auto args = std::make_shared<Binding>(nullptr, queue.stack_trace?binding:nullptr, nullptr, app, 1);
-    queue.queue.emplace(app->val.get(), queue.next(), binding, Binding::make_completer(args, 0));
-    queue.queue.emplace(app->fn .get(), queue.next(), std::move(binding), std::unique_ptr<Receiver>(
+    queue.emplace(app->val.get(), binding, Binding::make_completer(args, 0));
+    queue.emplace(app->fn .get(), std::move(binding), std::unique_ptr<Receiver>(
       new Application(std::move(args), std::move(receiver))));
   } else if (expr->type == Lambda::type) {
     Lambda *lambda = reinterpret_cast<Lambda*>(expr);
@@ -83,8 +83,8 @@ void Thunk::eval(ThunkQueue &queue)
     auto defs = std::make_shared<Binding>(binding, queue.stack_trace?binding:nullptr, &defbinding->location, defbinding, defbinding->val.size());
     int j = 0;
     for (auto &i : defbinding->val)
-      queue.queue.emplace(i.get(), queue.next(), binding, Binding::make_completer(defs, j++));
-    queue.queue.emplace(defbinding->body.get(), queue.next(), std::move(defs), std::move(receiver));
+      queue.emplace(i.get(), binding, Binding::make_completer(defs, j++));
+    queue.emplace(defbinding->body.get(), std::move(defs), std::move(receiver));
   } else if (expr->type == Literal::type) {
     Literal *lit = reinterpret_cast<Literal*>(expr);
     Receiver::receiveC(queue, std::move(receiver), lit->value);
@@ -99,8 +99,20 @@ void Thunk::eval(ThunkQueue &queue)
 }
 
 void ThunkQueue::run() {
+  Thunk run;
   while (!queue.empty()) {
-    const_cast<Thunk&>(queue.top()).eval(*this);
-    queue.pop();
+    run = std::move(queue.front());
+    std::pop_heap(queue.begin(), queue.end());
+    queue.pop_back();
+    run.eval(*this);
   }
+}
+
+void ThunkQueue::emplace(Expr *expr, std::shared_ptr<Binding> &&binding, std::unique_ptr<Receiver> receiver) {
+  queue.emplace_back(expr, ++serial + expr->uses.load(), std::move(binding), std::move(receiver));
+  std::push_heap(queue.begin(), queue.end());
+}
+
+void ThunkQueue::emplace(Expr *expr, const std::shared_ptr<Binding> &binding, std::unique_ptr<Receiver> receiver) {
+  emplace(expr, std::shared_ptr<Binding>(binding), std::move(receiver));
 }
