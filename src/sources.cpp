@@ -89,13 +89,6 @@ static std::string slurp(int dirfd, bool &fail) {
     }
     close(pipefd[0]);
     while (waitpid(pid, &status, 0) != pid) { }
-    if (WIFSIGNALED(status)) {
-      fprintf(stderr, "Failed to reap git: killed by %d\n", WTERMSIG(status));
-      fail = true;
-    } else if (WEXITSTATUS(status)) {
-      fprintf(stderr, "Failed to reap git: exited with %d\n", WEXITSTATUS(status));
-      fail = true;
-    }
   }
   return str.str();
 }
