@@ -162,8 +162,10 @@ global def localRunner =
           match (getJobReality job)
             Pass reality = Pass (RunnerOutput (map getPathName vis) Nil reality)
             Fail f = Fail f
-  def score (Plan _ _ _ _ _ _ _ _ _ lo _ _ _ _) =
-    if lo then Pass 1.0 else Fail "cannot detect outputs"
+  def score (Plan cmd _ env _ _ _ _ _ _ lo _ _ _ _) =
+    if ! lo then Fail "cannot detect outputs"
+    else if ! executableIn env cmd then Fail "executable '{format cmd.head}' not found"
+    else Pass 1.0
   Runner "local" score doit
 
 global def virtualRunner =
@@ -273,7 +275,7 @@ global def runJob p = match p
       Runner name scorefn fn = match (scorefn p)
         Pass x if x <=. 0.0 = Reject "{name}: non-positive score"
         Pass x = Accept x fn
-        Fail x = Reject "{name} {x}"
+        Fail x = Reject "{name}: {x}"
     def opts = subscribe runner | map qualify
     def best acc = match _ acc
       (Reject _) _ = acc
@@ -291,7 +293,7 @@ global def runJob p = match p
           def pretty = match _
             Accept _ _ = ""
             Reject why = why
-          makeError "No runner for '{job.getJobDescription}' available, because: {map pretty opts | catWith ", "}"
+          makeError "No runner for '{job.getJobDescription}' available, because {map pretty opts | catWith ", "}"
         def l = badlaunch job error
         def f = waitOne (\_ badfinish job error) l
         job
@@ -369,18 +371,28 @@ global def getJobStatus job = match (getJobReport job)
     then Exited status
     else Signaled (-status)
 
+def executableIn env cmdline = match cmdline
+  Nil = False
+  cmd, _ = 
+    def exec = match (getEnvironment "PATH" env)
+      None = cmd
+      Some path = whichIn path cmd
+    access exec xOK
+
 # Implement FUSE-based Runner
 def wakePath = prim "execpath" # location of the wake executable
 global def fuseRunner =
   def fuse = "{wakePath}/../lib/wake/fuse-wake"
-  def score (Plan _ _ _ _ _ _ _ _ _ lo _ _ _ _) =
-    if lo then Fail "would hide workspace" else Pass 1.0
+  def score (Plan cmd _ env _ _ _ _ _ _ lo _ _ _ _) =
+    if ! executableIn env cmd then Fail "{catWith " " cmd} not executable"
+    else if lo then Fail "would hide workspace" else Pass 1.0
   makeJSONRunner fuse score (_)
 
 global def preloadRunner =
   def preload = "{wakePath}/../lib/wake/preload-wake"
-  def score (Plan _ _ _ _ _ _ _ _ _ lo _ _ _ _) =
-    if lo then Fail "would hide workspace" else Pass 1.0
+  def score (Plan cmd _ env _ _ _ _ _ _ lo _ _ _ _) =
+    if ! executableIn env cmd then Fail "fuck off"
+    else if lo then Fail "would hide workspace" else Pass 1.0
   makeJSONRunner preload score (_)
 
 def rOK = 0
@@ -471,7 +483,7 @@ global def makeJSONRunner rawScript score estimate =
           match usageResult
             Fail f = Fail (makeError f)
             Pass usage = Pass (RunnerOutput (getK `inputs`) (getK `outputs`) usage)
-  makeRunner "json-{script}" score pre post localRunner
+  makeRunner "json-{replace `.*/` '' script}" score pre post localRunner
 
 # Paths differ from Strings in that they have been hashed; their content is frozen
 data Path =
