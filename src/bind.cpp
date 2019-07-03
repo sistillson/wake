@@ -209,12 +209,15 @@ static bool rebind_ref(ResolveBinding *binding, std::string &name) {
 
 Expr *rebind_subscribe(ResolveBinding *binding, const Location &location, const std::string &name) {
   ResolveBinding *iter;
+  VarRef *out = 0;
   for (iter = binding; iter; iter = iter->parent) {
     std::string pub = "publish " + std::to_string(iter->depth) + " " + name;
-    if (reference_map(iter, pub)) return new VarRef(location, pub);
+    if (reference_map(iter, pub)) out = new VarRef(location, pub);
   }
   // nil
-  return new VarRef(location, "Nil");
+  if (!out) out = new VarRef(location, "Nil");
+  out->flags |= FLAG_AST;
+  return out;
 }
 
 struct PatternTree {
@@ -571,7 +574,7 @@ static std::unique_ptr<Expr> fracture(std::unique_ptr<Expr> expr, ResolveBinding
       dbinding.index[name] = dbinding.defs.size();
       Location l = i.second.body->location;
       dbinding.defs.emplace_back(name, i.second.location,
-        std::unique_ptr<Expr>(new App(l, i.second.body.release(), rebind_subscribe(binding, l, i.first))));
+        std::unique_ptr<Expr>(new App(l, i.second.body.release(), rebind_subscribe(binding, i.second.location, i.first))));
     }
     dbinding.current_index = 0;
     for (auto &i : dbinding.defs) {
@@ -610,7 +613,7 @@ static std::unique_ptr<Expr> fracture(std::unique_ptr<Expr> expr, ResolveBinding
         Expr *tail;
         NameIndex::iterator pub;
         if ((pub = tbinding.index.find(name)) == tbinding.index.end()) {
-          tail = rebind_subscribe(binding, l, i.first);
+          tail = rebind_subscribe(binding, i.second.location, i.first);
         } else {
           std::string name = "chain " + std::to_string(++chain);
           tail = new VarRef(l, name);

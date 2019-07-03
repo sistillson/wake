@@ -899,7 +899,7 @@ static void parse_tuple(Lexer &lex, DefMap::Defs &map, Top *top, bool global) {
     construct = new Lambda(c.ast.token, c.ast.args[i-1].tag, construct);
 
   bind_def(lex, map, Definition(c.ast.name, c.ast.token, construct), global?top:0);
-  bind_def(lex, map, Definition(tname, c.ast.token, destructfn), global?top:0);
+  bind_def(lex, map, Definition(tname, LOCATION, destructfn), global?top:0);
 
   check_special(lex, name, sump);
 
@@ -949,7 +949,7 @@ static void parse_tuple(Lexer &lex, DefMap::Defs &map, Top *top, bool global) {
               editifn),
             new VarRef(memberToken, "_ x"))));
 
-    bind_def(lex, map, Definition(edit, memberToken, editfn), global?top:0);
+    bind_def(lex, map, Definition(edit, LOCATION, editfn), global?top:0);
 
     // Implement set methods
     Expr *setifn = new VarRef(memberToken, name);
@@ -971,7 +971,7 @@ static void parse_tuple(Lexer &lex, DefMap::Defs &map, Top *top, bool global) {
               setifn),
             new VarRef(memberToken, "_ x"))));
 
-    bind_def(lex, map, Definition(set, memberToken, setfn), global?top:0);
+    bind_def(lex, map, Definition(set, LOCATION, setfn), global?top:0);
 
     ++outer;
   }
